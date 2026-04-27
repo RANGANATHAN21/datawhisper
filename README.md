@@ -59,7 +59,7 @@ datawhisper/
 ### 1. Clone & configure
 
 ```bash
-git clone https://github.com/<your-org>/datawhisper.git
+git clone https://github.com/RANGANATHAN21/datawhisper.git
 cd datawhisper
 ```
 
@@ -70,7 +70,6 @@ cd backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-cp .env.example .env
 # Edit .env and set OPENAI_API_KEY
 nano .env
 
@@ -96,7 +95,7 @@ Frontend runs on http://localhost:5173 (proxies `/api` → port 8000).
 
 ### API Key Protection
 - `OPENAI_API_KEY` is loaded **only from environment variables** — never hardcoded, never returned in API responses, never logged.
-- `.env` is in `.gitignore`. Only `.env.example` (no real values) is committed.
+- `.env` is in `.gitignore`.
 - **Never commit a real key to Git** — even a temporary one gets invalidated by secret-scanning bots within minutes.
 
 ### File Upload Safety
@@ -126,9 +125,9 @@ For **chart generation**: same schema + stats + up to 200 sample rows (needed fo
 The full dataset **never leaves the server**.
 
 ### Input Limits
-- Questions capped at 2 000 characters (Pydantic).
+- Questions capped at 2000 characters (Pydantic).
 - `max_tokens: 1024` for text answers, `2048` for chart JSON.
-- Preview endpoint capped at 1 000 rows.
+- Preview endpoint capped at 1000 rows.
 
 ### Production Hardening (TODO)
 - [ ] Rate limiting via `slowapi` (already in `.env.example` as a reminder)
