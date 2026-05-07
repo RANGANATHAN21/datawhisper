@@ -21,11 +21,15 @@ import pandas as pd
 from fastapi import FastAPI, File, UploadFile, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from dotenv import load_dotenv
 from openai import OpenAI
 
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
+# Load backend/.env no matter how the app is started.
+load_dotenv(Path(__file__).with_name(".env"))
+
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 ALLOWED_EXTENSIONS = {".csv", ".xls", ".xlsx"}
