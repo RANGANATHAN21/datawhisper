@@ -65,14 +65,57 @@ cd datawhisper
 
 ### 2. Backend
 
+Create the environment:
+
+macOS / Linux:
+
 ```bash
 cd backend
-python -m venv .venv && source .venv/bin/activate
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+Windows PowerShell:
+
+```powershell
+cd backend
+py -3 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+Install dependencies:
+
+macOS / Linux:
+
+```bash
 pip install -r requirements.txt
+```
 
-# Edit .env and set OPENAI_API_KEY
+Windows PowerShell:
+
+```powershell
+pip install -r requirements.txt
+```
+
+Create `.env` from the example, then set `OPENAI_API_KEY`.
+
+macOS / Linux:
+
+```bash
+cp .env.example .env
 nano .env
+```
 
+Windows PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+notepad .env
+```
+
+Start the backend:
+
+```bash
 uvicorn main:app --reload
 ```
 
