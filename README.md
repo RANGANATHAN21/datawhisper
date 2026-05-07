@@ -140,6 +140,7 @@ Frontend runs on http://localhost:5173 (proxies `/api` → port 8000).
 
 ### API Key Protection
 - `OPENAI_API_KEY` is loaded **only from environment variables** — never hardcoded, never returned in API responses, never logged.
+- The backend loads `backend/.env` at startup via `python-dotenv`, so local development does not depend on exporting shell variables manually.
 - `.env` is in `.gitignore`.
 - **Never commit a real key to Git** — even a temporary one gets invalidated by secret-scanning bots within minutes.
 
@@ -147,22 +148,23 @@ Frontend runs on http://localhost:5173 (proxies `/api` → port 8000).
 - **Extension whitelist**: `.csv`, `.xls`, `.xlsx` only.
 - **Magic byte validation**: XLS/XLSX binary formats verified by file header bytes, not just extension.
 - **Size cap**: 10 MB per upload, enforced server-side before parsing.
-- **Filename sanitisation**: Path-traversal characters (`../`) and shell-unsafe chars stripped.
+- **Filename sanitisation**: uploaded names are reduced to their basename and non-word characters are replaced before use.
 - Files are read into in-memory pandas DataFrames — **never written to disk**.
 
 ### Injection Prevention
 - No shell commands are ever executed; all processing is via pandas/openpyxl.
 - User-supplied filenames and questions are never interpolated into shell or SQL.
 - AI prompts use clearly separated `system` / `user` roles; data context is sent as plain text, not as executable instructions.
-- Chart JSON returned by the AI is validated (`json.loads`) before being passed to the client — malformed payloads raise a 500 error rather than being forwarded raw.
+- Chart JSON returned by the AI is parsed with `json.loads` before being passed to the client. Invalid JSON is rejected with a server error instead of being forwarded raw.
 
 ### CORS
 - `ALLOWED_ORIGINS` is environment-configured (defaults to `http://localhost:5173`).
 - Lock to your production domain before deploying.
 
-### Session Isolation
-- Each upload gets a UUID session ID. Clients can only access their own session's data.
-- In-memory store means data is automatically cleared on server restart.
+### Session Storage And Access
+- Each upload gets a UUID session ID and all data is kept in in-memory Python dictionaries keyed by that ID.
+- There is **no authentication layer yet**. In practice, access depends on possession of the `session_id`, so treat it as an opaque secret rather than true user isolation.
+- In-memory storage means session data is cleared on server restart and is not shared across multiple backend instances.
 
 ### What is (and isn't) sent to OpenAI
 For **text answers**: column names, dtypes, row count, numeric `describe()` stats, and up to 20 sample rows.  
@@ -175,7 +177,7 @@ The full dataset **never leaves the server**.
 - Preview endpoint capped at 1000 rows.
 
 ### Production Hardening (TODO)
-- [ ] Rate limiting via `slowapi` (already in `.env.example` as a reminder)
+- [ ] Rate limiting
 - [ ] Authentication (JWT or session cookies)
 - [ ] Persist sessions to Redis with TTL
 - [ ] Virus scan uploaded files (ClamAV)
@@ -187,13 +189,13 @@ The full dataset **never leaves the server**.
 ## Thought Process
 
 ### Why FastAPI + React?
-FastAPI gives built-in Pydantic validation, automatic OpenAPI docs, and async file handling. React + Vite keeps the frontend reactive with no boilerplate; Vite's dev proxy eliminates CORS friction.
+FastAPI gives built-in Pydantic validation, automatic OpenAPI docs, and async multipart upload handling. React + Vite keeps the frontend small, and Vite's dev proxy removes local CORS friction by forwarding `/api` requests to the backend.
 
 ### Why Chart.js instead of LIDA?
-LIDA generates visualisations but bundles a heavy toolchain (matplotlib, lida, etc.) and requires code execution on the server — a significant attack surface for user-supplied data. Chart.js renders entirely in the browser from a JSON config; the server never executes untrusted code. This is both safer and faster.
+LIDA generates visualisations but bundles a heavier toolchain and generally assumes server-side code execution. This project instead asks the model for a plain Chart.js config, validates it as JSON, and renders it in the browser. That keeps the execution model simpler and reduces backend attack surface.
 
 ### Why not PandasAI?
-PandasAI executes LLM-generated Python against the actual DataFrame. Sandboxing that safely is non-trivial. The current approach (schema + sample → structured JSON answer) is fully auditable and doesn't require a sandbox.
+PandasAI executes LLM-generated Python against the actual DataFrame. Sandboxing that safely is non-trivial. The current approach keeps the model limited to answering from schema/stat/sample context for text responses, or returning structured chart JSON for visualisations.
 
 ### Data minimisation
 The AI never sees the full dataset. It sees schema, statistics, and a bounded sample. This reduces cost, latency, and inadvertent PII exposure.
@@ -204,10 +206,10 @@ The AI never sees the full dataset. It sees schema, statistics, and a bounded sa
 
 | Method | Endpoint | Description |
 |---|---|---|
-| `POST` | `/api/upload` | Upload files → session_id + sheet list |
-| `GET` | `/api/preview` | Top N rows for a sheet |
-| `POST` | `/api/ask` | Ask AI a text question |
-| `POST` | `/api/chart` | Generate a Chart.js config |
-| `POST` | `/api/feedback` | Submit 👍/👎 |
-| `GET` | `/api/history` | Full session history |
-| `GET` | `/api/health` | Health check |
+| `POST` | `/api/upload` | Upload one or more files and return `session_id` plus discovered sheets |
+| `GET` | `/api/preview` | Return the first `n` rows for a sheet (`1-1000`) |
+| `POST` | `/api/ask` | Ask a text question against all sheets or one selected sheet |
+| `POST` | `/api/chart` | Generate a Chart.js v4 config from a natural-language chart request |
+| `POST` | `/api/feedback` | Mark an answer or chart record as helpful / not helpful |
+| `GET` | `/api/history` | Return all answer/chart records stored for a session |
+| `GET` | `/api/health` | Health check returning app status and version |
