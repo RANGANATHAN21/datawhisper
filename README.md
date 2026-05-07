@@ -79,9 +79,11 @@ Windows PowerShell:
 
 ```powershell
 cd backend
-py -3 -m venv .venv
+python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 ```
+
+If `python` is not available on your machine, try `py -3 -m venv .venv` or `python3 -m venv .venv` instead.
 
 Install dependencies:
 
